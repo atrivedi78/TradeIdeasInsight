@@ -228,20 +228,158 @@ else:
     else:
         st.info("No stocks to analyze for the selected date.")
 
+# Future Additions Section
+st.header("🔮 Future Additions Analysis")
+st.markdown("S&P 400 companies most likely to be promoted to the S&P 500")
+
+# Load and analyze S&P 400 data
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_sp400_analysis():
+    """Load S&P 400 companies and analyze for S&P 500 inclusion likelihood"""
+    try:
+        analyzer = SP400Analyzer()
+        sp400_companies = analyzer.get_sp400_companies()
+        
+        if sp400_companies.empty:
+            return pd.DataFrame()
+        
+        # Analyze top candidates (limit to 30 for performance)
+        candidates = analyzer.analyze_sp500_candidates(sp400_companies, max_companies=30)
+        return candidates
+        
+    except Exception as e:
+        st.error(f"Error analyzing S&P 400 candidates: {str(e)}")
+        return pd.DataFrame()
+
+with st.spinner("Analyzing S&P 400 companies for promotion likelihood..."):
+    candidates_df = load_sp400_analysis()
+
+if not candidates_df.empty:
+    st.subheader("🏆 Top Candidates for S&P 500 Inclusion")
+    
+    # Display inclusion criteria
+    with st.expander("📋 S&P 500 Inclusion Criteria"):
+        st.markdown("""
+        **Current Requirements (2025):**
+        - **Market Cap**: Minimum $22.7 billion
+        - **Profitability**: Positive GAAP earnings (recent quarter + trailing 4 quarters)
+        - **Float**: At least 50% of shares publicly traded
+        - **Liquidity**: 250,000 shares/month for 6 months + liquidity ratio ≥ 0.75
+        - **Location**: US-based company on major US exchange
+        - **Committee Approval**: Final discretionary review by S&P Index Committee
+        """)
+    
+    # Top 10 candidates table
+    top_candidates = candidates_df.head(10)
+    
+    display_cols = [
+        'Symbol', 'Company', 'GICS_Sector', 'Market_Cap_B', 
+        'Revenue_Growth_TTM', 'Profit_Margin', 'ROE', 'Inclusion_Score'
+    ]
+    
+    display_df = top_candidates[display_cols].copy()
+    display_df.columns = [
+        'Symbol', 'Company', 'Sector', 'Market Cap ($B)', 
+        'Revenue Growth (%)', 'Profit Margin (%)', 'ROE (%)', 'Score'
+    ]
+    
+    # Format numerical columns
+    display_df['Market Cap ($B)'] = display_df['Market Cap ($B)'].round(1)
+    display_df['Revenue Growth (%)'] = display_df['Revenue Growth (%)'].round(1)
+    display_df['Profit Margin (%)'] = display_df['Profit Margin (%)'].round(1)
+    display_df['ROE (%)'] = display_df['ROE (%)'].round(1)
+    display_df['Score'] = display_df['Score'].round(1)
+    
+    st.dataframe(display_df, width='stretch', hide_index=True)
+    
+    # Create visualization of top candidates
+    fig = px.scatter(
+        top_candidates.head(20), 
+        x='Market_Cap_B', 
+        y='Inclusion_Score',
+        color='GICS_Sector',
+        size='Average_Volume_M',
+        hover_data=['Company', 'Revenue_Growth_TTM', 'Profit_Margin'],
+        title="S&P 400 Companies: Market Cap vs. Inclusion Score",
+        labels={
+            'Market_Cap_B': 'Market Cap ($ Billions)',
+            'Inclusion_Score': 'S&P 500 Inclusion Score',
+            'Average_Volume_M': 'Avg Volume (Millions)'
+        }
+    )
+    
+    # Add threshold line for S&P 500 market cap requirement
+    fig.add_hline(
+        y=70, 
+        line_dash="dash", 
+        line_color="green",
+        annotation_text="Strong Inclusion Likelihood (Score ≥ 70)"
+    )
+    
+    fig.add_vline(
+        x=22.7, 
+        line_dash="dash", 
+        line_color="red",
+        annotation_text="S&P 500 Min Market Cap ($22.7B)"
+    )
+    
+    fig.update_layout(height=500)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Sector breakdown
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📊 Sector Distribution")
+        sector_counts = top_candidates['GICS_Sector'].value_counts().head(8)
+        fig_pie = px.pie(
+            values=sector_counts.values,
+            names=sector_counts.index,
+            title="Top Candidates by Sector"
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+    
+    with col2:
+        st.subheader("💰 Market Cap Analysis")
+        
+        # Companies above/below threshold
+        above_threshold = len(top_candidates[top_candidates['Market_Cap_B'] >= 22.7])
+        below_threshold = len(top_candidates[top_candidates['Market_Cap_B'] < 22.7])
+        
+        st.metric("Companies Above $22.7B", above_threshold)
+        st.metric("Companies Below $22.7B", below_threshold)
+        
+        # Average metrics
+        avg_score = top_candidates['Inclusion_Score'].mean()
+        avg_market_cap = top_candidates['Market_Cap_B'].mean()
+        
+        st.metric("Average Inclusion Score", f"{avg_score:.1f}")
+        st.metric("Average Market Cap", f"${avg_market_cap:.1f}B")
+
+else:
+    st.warning("Unable to load S&P 400 analysis data. Please try again later.")
+
 # Additional information
 with st.expander("ℹ️ About this Analysis"):
     st.markdown("""
-    **Data Sources:**
+    **Historical Analysis Data Sources:**
     - S&P 500 historical changes: Wikipedia
     - Stock price data: Yahoo Finance (via yfinance)
     
+    **Future Additions Analysis:**
+    - S&P 400 company data: Wikipedia
+    - Financial metrics: Yahoo Finance (yfinance)
+    - Inclusion scoring: Based on official S&P 500 criteria
+    
     **Methodology:**
-    - Prices are rebased to the announcement date (set to 1.0)
+    - Historical prices are rebased to announcement date (set to 1.0)
     - Analysis covers 3 months before and after the announcement
-    - All prices are adjusted for splits and dividends
+    - Inclusion scores consider market cap, profitability, growth, financial health, and liquidity
+    - Scores range from 0-100, with 70+ indicating strong inclusion likelihood
     
     **Notes:**
     - Some stocks may not have sufficient historical data
     - Performance analysis excludes weekends and holidays
     - Green lines represent added stocks, red lines represent removed stocks
+    - Future inclusion predictions are based on quantitative analysis only
     """)
