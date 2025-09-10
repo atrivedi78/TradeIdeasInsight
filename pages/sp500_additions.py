@@ -7,6 +7,7 @@ import numpy as np
 from typing import Any
 from utils.data_scraper import SP500DataScraper
 from utils.stock_analysis import StockAnalyzer
+from utils.sp400_analyzer import SP400Analyzer
 
 # Configure page
 st.set_page_config(page_title="S&P 500 Additions - Trade Ideas", page_icon="📊", layout="wide")
