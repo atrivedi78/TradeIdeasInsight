@@ -180,8 +180,8 @@ class SP500DataScraper:
         df = df.drop_duplicates()
         
         # Filter out very recent dates (less than 30 days ago) as they may not have sufficient stock data
-        cutoff_date = datetime.now().date() - timedelta(days=30)
-        df = df[df['Date'] <= cutoff_date]
+        # cutoff_date = datetime.now().date() - timedelta(days=30)
+        # df = df[df['Date'] <= cutoff_date]
         
         # Sort by date (newest first)
         df = df.sort_values('Date', ascending=False)

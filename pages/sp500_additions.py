@@ -74,12 +74,12 @@ else:
     with col2:
         st.subheader("❌ Removals")
         if not removals.empty:
-            removals_display = removals[['Symbol', 'Company', 'GICS_Sector']].copy()
+            removals_display = removals[['Symbol', 'Company', 'Reason']].copy()
             st.dataframe(removals_display, width='stretch', hide_index=True)
         else:
             st.info("No removals on this date")
-    
-    # Performance analysis section
+   
+     # Performance analysis section
     st.header("📈 Performance Analysis")
     st.markdown("Stock performance 3 months before and after the announcement date")
     
