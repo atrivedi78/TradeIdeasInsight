@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import streamlit as st
 
@@ -26,19 +26,17 @@ class SP500DataScraper:
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Find the changes table - usually the second table on the page
+            # Find all tables
             tables = soup.find_all('table', class_='wikitable')
+            
+            # Get sector information from the main S&P 500 table (first table)
+            sector_data = self._extract_sector_data(tables[0] if tables else None)
             
             changes_data = []
             
-            # Look for the historical changes table
-            for table in tables:
-                # Check if this table contains historical changes
-                headers = table.find('tr')
-                if headers and hasattr(headers, 'find_all'):
-                    header_cells = headers.find_all(['th', 'td'])
-                    if any('date' in th.get_text().lower() for th in header_cells if hasattr(th, 'get_text')):
-                        changes_data.extend(self._parse_changes_table(table))
+            # Look for the historical changes table (second table)
+            if len(tables) >= 2:
+                changes_data.extend(self._parse_changes_table(tables[1]))
             
             if not changes_data:
                 # Fallback: create some sample data structure for demonstration
@@ -47,6 +45,9 @@ class SP500DataScraper:
             
             # Convert to DataFrame
             df = pd.DataFrame(changes_data)
+            
+            # Add sector information
+            df = self._add_sector_information(df, sector_data)
             
             # Clean and standardize the data
             df = self._clean_data(df)
@@ -178,6 +179,10 @@ class SP500DataScraper:
         # Remove duplicates
         df = df.drop_duplicates()
         
+        # Filter out very recent dates (less than 30 days ago) as they may not have sufficient stock data
+        cutoff_date = datetime.now().date() - timedelta(days=30)
+        df = df[df['Date'] <= cutoff_date]
+        
         # Sort by date (newest first)
         df = df.sort_values('Date', ascending=False)
         
@@ -200,7 +205,7 @@ class SP500DataScraper:
         """Create sample DataFrame structure for demonstration"""
         sample_data = [
             {
-                'Date': datetime(2024, 12, 16).date(),
+                'Date': datetime(2024, 6, 24).date(),
                 'Symbol': 'TPG',
                 'Company': 'TPG Inc.',
                 'Change_Type': 'Added',
@@ -208,15 +213,15 @@ class SP500DataScraper:
                 'Reason': 'Market cap increase'
             },
             {
-                'Date': datetime(2024, 12, 16).date(),
-                'Symbol': 'ZION',
-                'Company': 'Zions Bancorporation',
-                'Change_Type': 'Removed',
-                'GICS_Sector': 'Financials',
-                'Reason': 'Market cap decrease'
+                'Date': datetime(2024, 6, 24).date(),
+                'Symbol': 'SOLV',
+                'Company': 'Solventum Corporation',
+                'Change_Type': 'Added',
+                'GICS_Sector': 'Health Care',
+                'Reason': 'Spin-off from 3M'
             },
             {
-                'Date': datetime(2024, 9, 23).date(),
+                'Date': datetime(2024, 3, 18).date(),
                 'Symbol': 'SMCI',
                 'Company': 'Super Micro Computer',
                 'Change_Type': 'Added',
@@ -224,13 +229,78 @@ class SP500DataScraper:
                 'Reason': 'Market cap increase'
             },
             {
-                'Date': datetime(2024, 9, 23).date(),
-                'Symbol': 'ETSY',
-                'Company': 'Etsy Inc.',
+                'Date': datetime(2024, 3, 18).date(),
+                'Symbol': 'ZBH',
+                'Company': 'Zimmer Biomet Holdings',
                 'Change_Type': 'Removed',
-                'GICS_Sector': 'Consumer Discretionary',
+                'GICS_Sector': 'Health Care',
+                'Reason': 'Market cap decrease'
+            },
+            {
+                'Date': datetime(2023, 12, 18).date(),
+                'Symbol': 'KKR',
+                'Company': 'KKR & Co Inc',
+                'Change_Type': 'Added',
+                'GICS_Sector': 'Financials',
+                'Reason': 'Market cap increase'
+            },
+            {
+                'Date': datetime(2023, 12, 18).date(),
+                'Symbol': 'X',
+                'Company': 'United States Steel Corporation',
+                'Change_Type': 'Removed',
+                'GICS_Sector': 'Materials',
                 'Reason': 'Market cap decrease'
             }
         ]
         
         return pd.DataFrame(sample_data)
+    
+    def _extract_sector_data(self, table):
+        """Extract sector information from the main S&P 500 table"""
+        sector_data = {}
+        
+        if not table:
+            return sector_data
+        
+        try:
+            rows = table.find_all('tr')[1:]  # Skip header row
+            
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 3:  # Symbol, Security, GICS Sector
+                    symbol = cells[0].get_text().strip()
+                    company = cells[1].get_text().strip()
+                    sector = cells[2].get_text().strip()
+                    
+                    # Clean the data
+                    symbol = re.sub(r'\[.*?\]', '', symbol).strip()
+                    company = re.sub(r'\[.*?\]', '', company).strip()
+                    sector = re.sub(r'\[.*?\]', '', sector).strip()
+                    
+                    if symbol and sector:
+                        sector_data[symbol] = {
+                            'Company': company,
+                            'GICS_Sector': sector
+                        }
+                        
+        except Exception as e:
+            pass  # Continue even if sector extraction fails
+        
+        return sector_data
+    
+    def _add_sector_information(self, df, sector_data):
+        """Add sector information to the changes DataFrame"""
+        if df.empty or not sector_data:
+            return df
+        
+        # Update sector and company information
+        for idx, row in df.iterrows():
+            symbol = row['Symbol']
+            if symbol in sector_data:
+                df.at[idx, 'GICS_Sector'] = sector_data[symbol]['GICS_Sector']
+                # Only update company name if it's currently "Unknown Company"
+                if row['Company'] == "Unknown Company":
+                    df.at[idx, 'Company'] = sector_data[symbol]['Company']
+        
+        return df

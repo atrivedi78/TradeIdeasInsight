@@ -67,7 +67,7 @@ else:
         st.subheader("✅ Additions")
         if not additions.empty:
             additions_display = additions[['Symbol', 'Company', 'GICS_Sector']].copy()
-            st.dataframe(additions_display, use_container_width=True, hide_index=True)
+            st.dataframe(additions_display, width='stretch', hide_index=True)
         else:
             st.info("No additions on this date")
     
@@ -75,7 +75,7 @@ else:
         st.subheader("❌ Removals")
         if not removals.empty:
             removals_display = removals[['Symbol', 'Company', 'GICS_Sector']].copy()
-            st.dataframe(removals_display, use_container_width=True, hide_index=True)
+            st.dataframe(removals_display, width='stretch', hide_index=True)
         else:
             st.info("No removals on this date")
     
@@ -206,7 +206,7 @@ else:
                     
                     if summary_data:
                         summary_df = pd.DataFrame(summary_data)
-                        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                        st.dataframe(summary_df, width='stretch', hide_index=True)
                         
                         # Average performance by change type
                         if len(summary_df) > 1:
@@ -217,7 +217,7 @@ else:
                             }).round(2)
                             
                             st.subheader("📈 Average Performance by Change Type")
-                            st.dataframe(avg_performance, use_container_width=True)
+                            st.dataframe(avg_performance, width='stretch')
                 
                 else:
                     st.warning("Unable to retrieve performance data for the selected stocks.")
