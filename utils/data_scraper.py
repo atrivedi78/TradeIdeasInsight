@@ -60,46 +60,50 @@ class SP500DataScraper:
     def _parse_changes_table(self, table):
         """Parse the changes table from Wikipedia"""
         changes = []
-        rows = table.find_all('tr')[1:]  # Skip header row
+        rows = table.find_all('tr')[2:]  # Skip header rows (first two rows)
         
         for row in rows:
             cells = row.find_all(['td', 'th'])
             if len(cells) >= 4:  # Ensure we have enough columns
                 try:
-                    # Extract data from cells
+                    # Extract data from cells based on Wikipedia structure
                     date_text = cells[0].get_text().strip()
-                    added_text = cells[1].get_text().strip() if len(cells) > 1 else ""
-                    removed_text = cells[2].get_text().strip() if len(cells) > 2 else ""
-                    reason_text = cells[3].get_text().strip() if len(cells) > 3 else ""
                     
                     # Parse date
                     date = self._parse_date(date_text)
                     if not date:
                         continue
                     
-                    # Parse additions
-                    if added_text and added_text != "—" and added_text != "-":
-                        added_info = self._parse_stock_info(added_text)
-                        for symbol, company, sector in added_info:
+                    # Get reason (last column)
+                    reason_text = cells[-1].get_text().strip() if len(cells) > 4 else ""
+                    
+                    # Handle added stocks
+                    if len(cells) >= 3:
+                        added_ticker = cells[1].get_text().strip()
+                        added_company = cells[2].get_text().strip() if len(cells) > 2 else ""
+                        
+                        if added_ticker and added_ticker != "—" and added_ticker != "-":
                             changes.append({
                                 'Date': date,
-                                'Symbol': symbol,
-                                'Company': company,
+                                'Symbol': added_ticker,
+                                'Company': added_company or "Unknown Company",
                                 'Change_Type': 'Added',
-                                'GICS_Sector': sector,
+                                'GICS_Sector': "Unknown",  # We'll get this from the main table later
                                 'Reason': reason_text
                             })
                     
-                    # Parse removals
-                    if removed_text and removed_text != "—" and removed_text != "-":
-                        removed_info = self._parse_stock_info(removed_text)
-                        for symbol, company, sector in removed_info:
+                    # Handle removed stocks
+                    if len(cells) >= 5:
+                        removed_ticker = cells[3].get_text().strip()
+                        removed_company = cells[4].get_text().strip()
+                        
+                        if removed_ticker and removed_ticker != "—" and removed_ticker != "-":
                             changes.append({
                                 'Date': date,
-                                'Symbol': symbol,
-                                'Company': company,
+                                'Symbol': removed_ticker,
+                                'Company': removed_company or "Unknown Company",
                                 'Change_Type': 'Removed',
-                                'GICS_Sector': sector,
+                                'GICS_Sector': "Unknown",  # We'll get this from the main table later
                                 'Reason': reason_text
                             })
                             

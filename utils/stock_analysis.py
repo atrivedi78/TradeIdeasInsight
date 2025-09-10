@@ -69,10 +69,12 @@ class StockAnalyzer:
                 start=buffer_start,
                 end=buffer_end,
                 auto_adjust=True,  # Adjust for splits and dividends
-                back_adjust=True
+                back_adjust=True,
+                actions=False  # Don't include dividends and splits columns
             )
             
             if data.empty:
+                print(f"No data returned for {symbol}")
                 return pd.DataFrame()
             
             # Use adjusted close price
@@ -82,15 +84,21 @@ class StockAnalyzer:
             # Reset index to make Date a column
             price_data = price_data.reset_index()
             
+            # Ensure Date column is datetime
+            if not pd.api.types.is_datetime64_any_dtype(price_data['Date']):
+                price_data['Date'] = pd.to_datetime(price_data['Date'])
+            
             # Filter to the requested date range
             price_data = price_data[
                 (price_data['Date'].dt.date >= start_date) & 
                 (price_data['Date'].dt.date <= end_date)
             ]
             
+            print(f"Downloaded {len(price_data)} data points for {symbol}")
             return price_data
             
         except Exception as e:
+            print(f"Error downloading data for {symbol}: {str(e)}")
             return pd.DataFrame()
     
     def _rebase_prices(self, stock_data, announcement_date):
@@ -106,16 +114,25 @@ class StockAnalyzer:
             announcement_data = stock_data[stock_data['Date_Only'] == announcement_date]
             
             if announcement_data.empty:
-                # Find the closest date
-                stock_data['Days_Diff'] = abs((stock_data['Date_Only'] - announcement_date).dt.days)
-                closest_date_idx = stock_data['Days_Diff'].idxmin()
-                announcement_price = stock_data.loc[closest_date_idx, 'Price']
-                actual_announcement_date = stock_data.loc[closest_date_idx, 'Date_Only']
+                # Find the closest date (within 5 days)
+                stock_data['Days_Diff'] = abs((stock_data['Date_Only'] - announcement_date).apply(lambda x: x.days))
+                min_diff_idx = stock_data['Days_Diff'].idxmin()
+                min_diff = stock_data.loc[min_diff_idx, 'Days_Diff']
+                
+                if min_diff > 5:  # If no data within 5 days, skip
+                    print(f"No stock data within 5 days of announcement date {announcement_date}")
+                    return pd.DataFrame()
+                
+                announcement_price = stock_data.loc[min_diff_idx, 'Price']
+                actual_announcement_date = stock_data.loc[min_diff_idx, 'Date_Only']
+                print(f"Using closest date {actual_announcement_date} (diff: {min_diff} days)")
             else:
                 announcement_price = announcement_data.iloc[0]['Price']
                 actual_announcement_date = announcement_date
+                print(f"Found exact announcement date {announcement_date}")
             
             if announcement_price <= 0:
+                print(f"Invalid announcement price: {announcement_price}")
                 return pd.DataFrame()
             
             # Calculate rebased prices
@@ -124,7 +141,7 @@ class StockAnalyzer:
             # Calculate days from announcement
             stock_data['Days_From_Announcement'] = (
                 stock_data['Date_Only'] - actual_announcement_date
-            ).dt.days
+            ).apply(lambda x: x.days)
             
             # Clean up temporary columns
             result = stock_data[['Date', 'Price', 'Rebased_Price', 'Days_From_Announcement']].copy()
@@ -132,9 +149,11 @@ class StockAnalyzer:
             # Sort by date
             result = result.sort_values('Date')
             
+            print(f"Successfully rebased data: {len(result)} points")
             return result
             
         except Exception as e:
+            print(f"Error in rebasing: {str(e)}")
             return pd.DataFrame()
     
     def calculate_performance_metrics(self, performance_data, symbols):
