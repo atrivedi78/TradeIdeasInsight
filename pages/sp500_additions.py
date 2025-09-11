@@ -266,7 +266,7 @@ if not candidates_df.empty:
         """)
     
     # Top candidates table with column selector
-    top_candidates = candidates_df# .head(400)
+    top_candidates = candidates_df
     
     # Column mapping for user-friendly names
     column_mapping = {
@@ -277,7 +277,8 @@ if not candidates_df.empty:
         'Revenue Growth (%)': 'Revenue_Growth_TTM',
         'Profit Margin (%)': 'Profit_Margin',
         'ROE (%)': 'ROE',
-        'Score': 'Inclusion_Score'
+        'Score': 'Inclusion_Score',
+        'Meets Criteria': 'criteria_met' 
     }
     
     # Column selector

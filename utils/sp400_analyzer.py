@@ -130,7 +130,7 @@ class Russell1000Analyzer:
             st.error(f"Error scraping Russell 1000 data: {str(e)}")
             return self._create_sample_russell_data()
     
-    def get_sp500_candidates(self, max_companies=50):
+    def get_sp500_candidates(self, max_companies=100):
         """
         Get Russell 1000 companies, filter out current S&P 500, and analyze for S&P 500 inclusion likelihood
         Returns DataFrame with scores and financial metrics
@@ -166,7 +166,7 @@ class Russell1000Analyzer:
                 
                 if financial_metrics:
                     # Calculate inclusion score
-                    score = self._calculate_inclusion_score(financial_metrics)
+                    score, criteria_met = self._calculate_inclusion_score(financial_metrics)
                     
                     candidate = {
                         'Symbol': symbol,
@@ -180,6 +180,7 @@ class Russell1000Analyzer:
                         'Free_Cash_Flow_B': financial_metrics.get('free_cash_flow', 0) / 1e9,
                         'Average_Volume_M': financial_metrics.get('avg_volume', 0) / 1e6,
                         'Inclusion_Score': score,
+                        'criteria_met': criteria_met,
                         'Score_Components': financial_metrics.get('score_breakdown', {})
                     }
                     
@@ -244,10 +245,11 @@ class Russell1000Analyzer:
         5 - Location: US-based company on major US exchange
         6 - Committee Approval: Final discretionary review by S&P Index Committee
         
-        Returns score from 0-100
+        Returns score from 0-100 + candidate field showing if inclusion limits have been breached completely
         """
         score = 0
         score_breakdown = {}
+        criteria_met = True
         
         # Market Cap Score (30 points max)
         market_cap = metrics.get('market_cap', 0)
@@ -260,17 +262,19 @@ class Russell1000Analyzer:
             cap_score = 0
             score += cap_score
             score_breakdown['market_cap'] = cap_score
+            criteria_met = False
 
         # Liquidity Score (10 points max)
         avg_volume = metrics.get('avg_volume', 0)
         # Calculate monthly volume: daily average * ~21 trading days
-        monthly_volume = avg_volume * 21
+        monthly_volume = avg_volume * 20
         min_monthly_volume = self.sp500_criteria['min_monthly_volume']
         
         if monthly_volume >= min_monthly_volume:
             liquidity_score = 10
         else:
             liquidity_score = max(0, (monthly_volume / min_monthly_volume) * 10)
+            criteria_met = False
 
         score += liquidity_score
         score_breakdown['liquidity'] = liquidity_score
@@ -286,6 +290,7 @@ class Russell1000Analyzer:
             float_score = 20
         else:
             float_score = 0
+            criteria_met = False
         
         score += float_score
         score_breakdown['float'] = float_score
@@ -321,7 +326,7 @@ class Russell1000Analyzer:
         score_breakdown['financial_health'] = health_score
         
         metrics['score_breakdown'] = score_breakdown
-        return min(100, score)
+        return min(100, score), criteria_met
     
     def _create_sample_russell_data(self):
         """Create sample Russell 1000 data structure for demonstration"""
