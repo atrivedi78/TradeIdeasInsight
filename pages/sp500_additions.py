@@ -265,28 +265,51 @@ if not candidates_df.empty:
         - **Committee Approval**: Final discretionary review by S&P Index Committee
         """)
     
-    # Top 10 candidates table
+    # Top candidates table with column selector
     top_candidates = candidates_df# .head(400)
     
-    display_cols = [
-        'Symbol', 'Company', 'GICS_Sector', 'Market_Cap_B', 
-        'Revenue_Growth_TTM', 'Profit_Margin', 'ROE', 'Inclusion_Score'
-    ]
+    # Column mapping for user-friendly names
+    column_mapping = {
+        'Symbol': 'Symbol',
+        'Company': 'Company', 
+        'Sector': 'GICS_Sector',
+        'Market Cap ($B)': 'Market_Cap_B',
+        'Revenue Growth (%)': 'Revenue_Growth_TTM',
+        'Profit Margin (%)': 'Profit_Margin',
+        'ROE (%)': 'ROE',
+        'Score': 'Inclusion_Score'
+    }
     
-    display_df = top_candidates[display_cols].copy()
-    display_df.columns = [
-        'Symbol', 'Company', 'Sector', 'Market Cap ($B)', 
-        'Revenue Growth (%)', 'Profit Margin (%)', 'ROE (%)', 'Score'
-    ]
+    # Column selector
+    available_columns = list(column_mapping.keys())
+    selected_columns = st.multiselect(
+        "Select columns to display:",
+        options=available_columns,
+        default=available_columns,
+        key="column_selector"
+    )
     
-    # Format numerical columns
-    display_df['Market Cap ($B)'] = display_df['Market Cap ($B)'].round(1)
-    display_df['Revenue Growth (%)'] = display_df['Revenue Growth (%)'].round(1)
-    display_df['Profit Margin (%)'] = display_df['Profit Margin (%)'].round(1)
-    display_df['ROE (%)'] = display_df['ROE (%)'].round(1)
-    display_df['Score'] = display_df['Score'].round(1)
+    if selected_columns:
+        # Map selected display names back to actual column names
+        actual_cols = [column_mapping[col] for col in selected_columns]
+        display_df = top_candidates[actual_cols].copy()
+        display_df.columns = selected_columns
     
-    st.dataframe(display_df, width='stretch', hide_index=True)
+        # Format numerical columns if they're selected
+        if 'Market Cap ($B)' in display_df.columns:
+            display_df['Market Cap ($B)'] = display_df['Market Cap ($B)'].round(1)
+        if 'Revenue Growth (%)' in display_df.columns:
+            display_df['Revenue Growth (%)'] = display_df['Revenue Growth (%)'].round(1)
+        if 'Profit Margin (%)' in display_df.columns:
+            display_df['Profit Margin (%)'] = display_df['Profit Margin (%)'].round(1)
+        if 'ROE (%)' in display_df.columns:
+            display_df['ROE (%)'] = display_df['ROE (%)'].round(1)
+        if 'Score' in display_df.columns:
+            display_df['Score'] = display_df['Score'].round(1)
+        
+        st.dataframe(display_df, width='stretch', hide_index=True)
+    else:
+        st.warning("Please select at least one column to display.")
     
     # Create visualization of top candidates
     fig = px.scatter(
