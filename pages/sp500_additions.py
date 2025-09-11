@@ -7,7 +7,7 @@ import numpy as np
 from typing import Any
 from utils.data_scraper import SP500DataScraper
 from utils.stock_analysis import StockAnalyzer
-from utils.sp400_analyzer import SP400Analyzer
+from utils.sp400_analyzer import Russell1000Analyzer
 
 # Configure page
 st.set_page_config(page_title="S&P 500 Additions - Trade Ideas", page_icon="📊", layout="wide")
@@ -230,29 +230,25 @@ else:
 
 # Future Additions Section
 st.header("🔮 Future Additions Analysis")
-st.markdown("S&P 400 companies most likely to be promoted to the S&P 500")
+st.markdown("Russell 1000 companies (excluding current S&P 500) most likely to be promoted to the S&P 500")
 
-# Load and analyze S&P 400 data
+# Load and analyze Russell 1000 data
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_sp400_analysis():
-    """Load S&P 400 companies and analyze for S&P 500 inclusion likelihood"""
+def load_russell_analysis():
+    """Load Russell 1000 companies, filter out S&P 500, and analyze for S&P 500 inclusion likelihood"""
     try:
-        analyzer = SP400Analyzer()
-        sp400_companies = analyzer.get_sp400_companies()
-        
-        if sp400_companies.empty:
-            return pd.DataFrame()
-        
-        # Analyze top candidates (limit to 30 for performance)
-        candidates = analyzer.analyze_sp500_candidates(sp400_companies, max_companies=30)
+        analyzer = Russell1000Analyzer()
+        # Get S&P 500 candidates from Russell 1000 (filtered automatically)
+        candidates = analyzer.get_sp500_candidates(max_companies=30)
         return candidates
         
+        
     except Exception as e:
-        st.error(f"Error analyzing S&P 400 candidates: {str(e)}")
+        st.error(f"Error analyzing Russell 1000 candidates: {str(e)}")
         return pd.DataFrame()
 
-with st.spinner("Analyzing S&P 400 companies for promotion likelihood..."):
-    candidates_df = load_sp400_analysis()
+with st.spinner("Analyzing Russell 1000 companies for S&P 500 promotion likelihood..."):
+    candidates_df = load_russell_analysis()
 
 if not candidates_df.empty:
     st.subheader("🏆 Top Candidates for S&P 500 Inclusion")
@@ -270,7 +266,7 @@ if not candidates_df.empty:
         """)
     
     # Top 10 candidates table
-    top_candidates = candidates_df.head(10)
+    top_candidates = candidates_df# .head(400)
     
     display_cols = [
         'Symbol', 'Company', 'GICS_Sector', 'Market_Cap_B', 
@@ -300,7 +296,7 @@ if not candidates_df.empty:
         color='GICS_Sector',
         size='Average_Volume_M',
         hover_data=['Company', 'Revenue_Growth_TTM', 'Profit_Margin'],
-        title="S&P 400 Companies: Market Cap vs. Inclusion Score",
+        title="Russell 1000 Companies: Market Cap vs. Inclusion Score",
         labels={
             'Market_Cap_B': 'Market Cap ($ Billions)',
             'Inclusion_Score': 'S&P 500 Inclusion Score',
@@ -325,36 +321,6 @@ if not candidates_df.empty:
     
     fig.update_layout(height=500)
     st.plotly_chart(fig, use_container_width=True)
-    
-    # Sector breakdown
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📊 Sector Distribution")
-        sector_counts = top_candidates['GICS_Sector'].value_counts().head(8)
-        fig_pie = px.pie(
-            values=sector_counts.values,
-            names=sector_counts.index,
-            title="Top Candidates by Sector"
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-    
-    with col2:
-        st.subheader("💰 Market Cap Analysis")
-        
-        # Companies above/below threshold
-        above_threshold = len(top_candidates[top_candidates['Market_Cap_B'] >= 22.7])
-        below_threshold = len(top_candidates[top_candidates['Market_Cap_B'] < 22.7])
-        
-        st.metric("Companies Above $22.7B", above_threshold)
-        st.metric("Companies Below $22.7B", below_threshold)
-        
-        # Average metrics
-        avg_score = top_candidates['Inclusion_Score'].mean()
-        avg_market_cap = top_candidates['Market_Cap_B'].mean()
-        
-        st.metric("Average Inclusion Score", f"{avg_score:.1f}")
-        st.metric("Average Market Cap", f"${avg_market_cap:.1f}B")
 
 else:
     st.warning("Unable to load S&P 400 analysis data. Please try again later.")
@@ -367,13 +333,15 @@ with st.expander("ℹ️ About this Analysis"):
     - Stock price data: Yahoo Finance (via yfinance)
     
     **Future Additions Analysis:**
-    - S&P 400 company data: Wikipedia
+    - Russell 1000 company data: Wikipedia
+    - S&P 500 company data: Wikipedia (for filtering)
     - Financial metrics: Yahoo Finance (yfinance)
     - Inclusion scoring: Based on official S&P 500 criteria
     
     **Methodology:**
     - Historical prices are rebased to announcement date (set to 1.0)
     - Analysis covers 3 months before and after the announcement
+    - Russell 1000 companies already in S&P 500 are filtered out automatically
     - Inclusion scores consider market cap, profitability, growth, financial health, and liquidity
     - Scores range from 0-100, with 70+ indicating strong inclusion likelihood
     

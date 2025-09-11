@@ -7,11 +7,12 @@ from datetime import datetime, timedelta
 import streamlit as st
 import re
 
-class SP400Analyzer:
-    """Analyzer for S&P 400 companies and their likelihood of S&P 500 inclusion"""
+class Russell1000Analyzer:
+    """Analyzer for Russell 1000 companies and their likelihood of S&P 500 inclusion"""
     
     def __init__(self):
-        self.url = "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies"
+        self.russell_url = "https://en.wikipedia.org/wiki/Russell_1000_Index"
+        self.sp500_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -25,22 +26,73 @@ class SP400Analyzer:
             'profitability_quarters': 4  # positive earnings for trailing 4 quarters
         }
     
-    def get_sp400_companies(self):
+    def get_sp500_companies(self):
         """
-        Scrape S&P 400 companies from Wikipedia
-        Returns DataFrame with company information
+        Get current S&P 500 companies from Wikipedia
+        Returns set of symbols
         """
         try:
-            response = requests.get(self.url, headers=self.headers, timeout=15)
+            response = requests.get(self.sp500_url, headers=self.headers, timeout=15)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Find the main table with company data
+            # Find the main table with S&P 500 company data
             table = soup.find('table', class_='wikitable')
             
             if not table:
-                st.error("Could not find S&P 400 companies table")
+                st.error("Could not find S&P 500 companies table")
+                return set()
+            
+            sp500_symbols = set()
+            rows = table.find_all('tr')[1:]  # Skip header row
+            
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 1:
+                    try:
+                        symbol = cells[0].get_text().strip()
+                        # Clean the symbol
+                        symbol = re.sub(r'[^\w.-]', '', symbol)
+                        
+                        if symbol:
+                            sp500_symbols.add(symbol)
+                            
+                    except Exception as e:
+                        continue  # Skip problematic rows
+            
+            print(f"Found {len(sp500_symbols)} S&P 500 companies")
+            return sp500_symbols
+            
+        except Exception as e:
+            st.error(f"Error scraping S&P 500 data: {str(e)}")
+            return set()
+    
+    def get_russell1000_companies(self):
+        """
+        Scrape Russell 1000 companies from Wikipedia
+        Returns DataFrame with company information
+        """
+        try:
+            response = requests.get(self.russell_url, headers=self.headers, timeout=15)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Find the components table - look for the table with Company/Symbol headers
+            tables = soup.find_all('table', class_='wikitable')
+            
+            table = None
+            for tbl in tables:
+                headers = tbl.find('tr')
+                if headers:
+                    header_text = headers.get_text().lower()
+                    if 'company' in header_text and 'symbol' in header_text:
+                        table = tbl
+                        break
+            
+            if not table:
+                st.error("Could not find Russell 1000 components table with Company/Symbol headers")
                 return pd.DataFrame()
             
             companies = []
@@ -48,16 +100,15 @@ class SP400Analyzer:
             
             for row in rows:
                 cells = row.find_all(['td', 'th'])
-                if len(cells) >= 5:
+                if len(cells) >= 3:
                     try:
-                        symbol = cells[0].get_text().strip()
-                        company_name = cells[1].get_text().strip()
+                        company_name = cells[0].get_text().strip()
+                        symbol = cells[1].get_text().strip()
                         gics_sector = cells[2].get_text().strip()
-                        gics_sub_industry = cells[3].get_text().strip()
-                        headquarters = cells[4].get_text().strip()
+                        gics_sub_industry = cells[3].get_text().strip() if len(cells) > 3 else ""
                         
                         # Clean the data
-                        symbol = re.sub(r'[^\w]', '', symbol)
+                        symbol = re.sub(r'[^\w.-]', '', symbol)
                         company_name = re.sub(r'\[.*?\]', '', company_name).strip()
                         
                         if symbol and company_name:
@@ -65,37 +116,50 @@ class SP400Analyzer:
                                 'Symbol': symbol,
                                 'Company': company_name,
                                 'GICS_Sector': gics_sector,
-                                'GICS_Sub_Industry': gics_sub_industry,
-                                'Headquarters': headquarters
+                                'GICS_Sub_Industry': gics_sub_industry
                             })
                             
                     except Exception as e:
                         continue  # Skip problematic rows
             
             df = pd.DataFrame(companies)
-            print(f"Successfully scraped {len(df)} S&P 400 companies")
+            print(f"Successfully scraped {len(df)} Russell 1000 companies")
             return df
             
         except Exception as e:
-            st.error(f"Error scraping S&P 400 data: {str(e)}")
-            return self._create_sample_sp400_data()
+            st.error(f"Error scraping Russell 1000 data: {str(e)}")
+            return self._create_sample_russell_data()
     
-    def analyze_sp500_candidates(self, sp400_df, max_companies=50):
+    def get_sp500_candidates(self, max_companies=50):
         """
-        Analyze S&P 400 companies for likelihood of S&P 500 inclusion
+        Get Russell 1000 companies, filter out current S&P 500, and analyze for S&P 500 inclusion likelihood
         Returns DataFrame with scores and financial metrics
         """
-        if sp400_df.empty:
+        # Get Russell 1000 companies
+        russell_df = self.get_russell1000_companies()
+        if russell_df.empty:
+            return pd.DataFrame()
+        
+        # Get current S&P 500 companies to filter out
+        sp500_symbols = self.get_sp500_companies()
+        
+        # Filter out current S&P 500 companies from Russell 1000
+        candidates_df = russell_df[~russell_df['Symbol'].isin(sp500_symbols)]
+        
+        print(f"Russell 1000: {len(russell_df)} companies, S&P 500: {len(sp500_symbols)} companies")
+        print(f"Candidates after filtering: {len(candidates_df)} companies")
+        
+        if candidates_df.empty:
             return pd.DataFrame()
         
         candidates = []
         
         # Process companies in batches to avoid overwhelming the API
-        symbols = sp400_df['Symbol'].tolist()[:max_companies]  # Limit for performance
+        symbols = candidates_df['Symbol'].tolist()[:max_companies]  # Limit for performance
         
         for symbol in symbols:
             try:
-                company_data = sp400_df[sp400_df['Symbol'] == symbol].iloc[0]
+                company_data = candidates_df[candidates_df['Symbol'] == symbol].iloc[0]
                 
                 # Get financial data
                 financial_metrics = self._get_financial_metrics(symbol)
@@ -155,6 +219,8 @@ class SP400Analyzer:
                     'price_to_book': info.get('priceToBook', 0),
                     'enterprise_value': info.get('enterpriseValue', 0),
                     'earnings_growth': info.get('earningsGrowth', 0) * 100 if info.get('earningsGrowth') else 0,
+                    'shares_outstanding': info.get('sharesOutstanding', 0),
+                    'float_shares': info.get('floatShares', 0),
                 }
                 
                 return metrics
@@ -168,6 +234,16 @@ class SP400Analyzer:
     def _calculate_inclusion_score(self, metrics):
         """
         Calculate inclusion likelihood score based on S&P 500 criteria
+
+        Current Requirements (2025):
+
+        1 - Market Cap: Minimum $22.7 billion
+        2 - Profitability: Positive GAAP earnings (recent quarter + trailing 4 quarters)
+        3 - Float: At least 50% of shares publicly traded
+        4 - Liquidity: 250,000 shares/month for 6 months + liquidity ratio ≥ 0.75
+        5 - Location: US-based company on major US exchange
+        6 - Committee Approval: Final discretionary review by S&P Index Committee
+        
         Returns score from 0-100
         """
         score = 0
@@ -180,57 +256,75 @@ class SP400Analyzer:
             score += cap_score
             score_breakdown['market_cap'] = cap_score
         else:
-            # Partial credit for companies close to threshold
-            cap_ratio = market_cap / self.sp500_criteria['min_market_cap']
-            cap_score = 20 * cap_ratio if cap_ratio > 0.7 else 0
+            # No credit for companies below threshold
+            cap_score = 0
             score += cap_score
             score_breakdown['market_cap'] = cap_score
+
+        # Liquidity Score (10 points max)
+        avg_volume = metrics.get('avg_volume', 0)
+        # Calculate monthly volume: daily average * ~21 trading days
+        monthly_volume = avg_volume * 21
+        min_monthly_volume = self.sp500_criteria['min_monthly_volume']
         
-        # Profitability Score (25 points max)
+        if monthly_volume >= min_monthly_volume:
+            liquidity_score = 10
+        else:
+            liquidity_score = max(0, (monthly_volume / min_monthly_volume) * 10)
+
+        score += liquidity_score
+        score_breakdown['liquidity'] = liquidity_score
+
+        # Float Score (20 points max)
+        market_cap = metrics.get('market_cap',0)
+        shares_outstanding = metrics.get('shares_outstanding',0)
+        float_shares = metrics.get('float_shares',0)
+        
+        public_float_pct = ((float_shares / shares_outstanding) * 100) if shares_outstanding > 0 else 0
+        
+        if public_float_pct >= self.sp500_criteria['min_float_percentage']:
+            float_score = 20
+        else:
+            float_score = 0
+        
+        score += float_score
+        score_breakdown['float'] = float_score
+        
+        # Profitability Score (10 points max) - not stated criteria
         profit_margin = metrics.get('profit_margin', 0)
         roe = metrics.get('roe', 0)
         if profit_margin > 0 and roe > 0:
-            profitability_score = min(25, (profit_margin + roe) / 2)
+            profitability_score = min(10, (profit_margin + roe) / 2)
             score += profitability_score
             score_breakdown['profitability'] = profitability_score
         
-        # Growth Score (20 points max)
+        # Growth Score (10 points max) - not stated criteria
         revenue_growth = metrics.get('revenue_growth', 0)
         earnings_growth = metrics.get('earnings_growth', 0)
         if revenue_growth > 0 or earnings_growth > 0:
-            growth_score = min(20, max(revenue_growth, earnings_growth) / 2)
+            growth_score = min(10, max(revenue_growth, earnings_growth) / 2)
             score += growth_score
             score_breakdown['growth'] = growth_score
         
-        # Financial Health Score (15 points max)
+        # Financial Health Score (10 points max) - not stated criteria
         debt_to_equity = metrics.get('debt_to_equity', 100)
         free_cash_flow = metrics.get('free_cash_flow', 0)
         
         # Lower debt is better
-        debt_score = max(0, 8 - debt_to_equity / 10) if debt_to_equity > 0 else 8
+        debt_score = max(0, 5 - debt_to_equity / 10) if debt_to_equity > 0 else 5
         
         # Positive free cash flow is good
-        fcf_score = 7 if free_cash_flow > 0 else 0
+        fcf_score = 5 if free_cash_flow > 0 else 0
         
         health_score = debt_score + fcf_score
         score += health_score
         score_breakdown['financial_health'] = health_score
         
-        # Liquidity Score (10 points max)
-        avg_volume = metrics.get('avg_volume', 0)
-        if avg_volume >= self.sp500_criteria['min_monthly_volume'] * 30:  # Convert to daily
-            liquidity_score = 10
-        else:
-            liquidity_score = max(0, avg_volume / (self.sp500_criteria['min_monthly_volume'] * 30) * 10)
-        
-        score += liquidity_score
-        score_breakdown['liquidity'] = liquidity_score
-        
         metrics['score_breakdown'] = score_breakdown
         return min(100, score)
     
-    def _create_sample_sp400_data(self):
-        """Create sample S&P 400 data structure for demonstration"""
+    def _create_sample_russell_data(self):
+        """Create sample Russell 1000 data structure for demonstration"""
         sample_data = [
             {
                 'Symbol': 'SMCI',
