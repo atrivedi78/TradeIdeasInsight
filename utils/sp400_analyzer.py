@@ -130,7 +130,7 @@ class Russell1000Analyzer:
             st.error(f"Error scraping Russell 1000 data: {str(e)}")
             return self._create_sample_russell_data()
     
-    def get_sp500_candidates(self, max_companies=100):
+    def get_sp500_candidates(self, max_companies=30):
         """
         Get Russell 1000 companies, filter out current S&P 500, and analyze for S&P 500 inclusion likelihood
         Returns DataFrame with scores and financial metrics

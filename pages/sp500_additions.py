@@ -239,7 +239,7 @@ def load_russell_analysis():
     try:
         analyzer = Russell1000Analyzer()
         # Get S&P 500 candidates from Russell 1000 (filtered automatically)
-        candidates = analyzer.get_sp500_candidates(max_companies=30)
+        candidates = analyzer.get_sp500_candidates(max_companies=1000)
         return candidates
         
         
@@ -289,6 +289,8 @@ if not candidates_df.empty:
         default=available_columns,
         key="column_selector"
     )
+
+    top_candidates = top_candidates[top_candidates["criteria_met"]]
     
     if selected_columns:
         # Map selected display names back to actual column names
