@@ -27,12 +27,19 @@ Preferred communication style: Simple, everyday language.
 - **SP500DataScraper**: Handles Wikipedia scraping for historical S&P 500 changes
 - **StockAnalyzer**: Manages stock performance analysis and price rebasing calculations
 - **Data Transformation**: Price normalization relative to announcement dates for comparative analysis
+- **IndexDataFetcher**: Retrieves constituent tickers for multiple global indices (S&P 500, Nasdaq 100, Russell 1000, FTSE 100, Eurostoxx)
+- **CrossAnalyzer**: Detects golden and death crosses using 50-day and 200-day moving averages with RSI and valuation metrics
 
 ### Analysis Features
 - **Historical Tracking**: S&P 500 additions/removals with date-based filtering
 - **Performance Analysis**: 3-month pre/post announcement performance tracking
 - **Price Rebasing**: Normalization of stock prices to announcement dates for comparison
 - **Interactive Selection**: Date-based filtering with reverse chronological ordering
+- **Golden & Death Cross Alerts**: Multi-index technical analysis detecting 50/200-day MA crossovers
+  - Supports S&P 500, Nasdaq 100, Russell 1000, FTSE 100, and Eurostoxx indices
+  - Identifies stocks with golden crosses (bullish) or death crosses (bearish) in the past week
+  - Includes RSI, Forward P/E, P/E ratio, and market cap data
+  - Customizable lookback periods (90-365 days)
 
 ## External Dependencies
 

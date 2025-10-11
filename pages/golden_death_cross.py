@@ -40,6 +40,15 @@ with col1:
         help="Number of days of historical data to analyze"
     )
     
+    max_stocks = st.number_input(
+        "Max Stocks to Analyze",
+        min_value=10,
+        max_value=500,
+        value=100,
+        step=10,
+        help="Limit analysis to avoid rate limits (large indices may take several minutes)"
+    )
+    
     analyze_button = st.button("🔍 Analyze", type="primary", use_container_width=True)
 
 with col2:
@@ -57,7 +66,7 @@ with col2:
             
             with st.spinner("Analyzing stocks for golden and death crosses..."):
                 analyzer = CrossAnalyzer()
-                results = analyzer.analyze_stocks(symbols, lookback_days=lookback_days)
+                results = analyzer.analyze_stocks(symbols, lookback_days=lookback_days, max_symbols=max_stocks)
             
             if results.empty:
                 st.warning("No golden or death crosses found in the past week for this index.")

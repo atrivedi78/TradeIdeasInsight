@@ -11,13 +11,14 @@ class CrossAnalyzer:
         self.short_ma = 50
         self.long_ma = 200
     
-    def analyze_stocks(self, symbols, lookback_days=180):
+    def analyze_stocks(self, symbols, lookback_days=180, max_symbols=100):
         """
         Analyze stocks for golden and death crosses
         
         Args:
             symbols: List of stock symbols to analyze
             lookback_days: Number of days to look back for price data (default 180 = ~6 months)
+            max_symbols: Maximum number of symbols to analyze (default 100)
         
         Returns:
             DataFrame with stocks that have had recent crosses
@@ -25,6 +26,10 @@ class CrossAnalyzer:
         results = []
         end_date = datetime.now()
         start_date = end_date - timedelta(days=lookback_days + self.long_ma)
+        
+        if len(symbols) > max_symbols:
+            st.info(f"Analyzing first {max_symbols} stocks from {len(symbols)} total (to avoid rate limits)")
+            symbols = symbols[:max_symbols]
         
         total_symbols = len(symbols)
         progress_bar = st.progress(0)
@@ -101,11 +106,17 @@ class CrossAnalyzer:
                 
                 rsi = self._calculate_rsi(hist['Close'])
                 
-                info = ticker.info
-                forward_pe = info.get('forwardPE', None)
-                pe_ratio = info.get('trailingPE', None)
-                market_cap = info.get('marketCap', None)
-                company_name = info.get('longName', symbol)
+                try:
+                    info = ticker.info
+                    forward_pe = info.get('forwardPE', None)
+                    pe_ratio = info.get('trailingPE', None)
+                    market_cap = info.get('marketCap', None)
+                    company_name = info.get('longName', symbol)
+                except:
+                    forward_pe = None
+                    pe_ratio = None
+                    market_cap = None
+                    company_name = symbol
                 
                 return {
                     'Symbol': symbol,

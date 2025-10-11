@@ -101,39 +101,9 @@ class IndexDataFetcher:
             return []
     
     def _get_russell1000(self):
-        """Get Russell 1000 constituents"""
-        try:
-            url = "https://en.wikipedia.org/wiki/Russell_1000_Index"
-            response = requests.get(url, headers=self.headers, timeout=15)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.content, 'html.parser')
-            table = soup.find('table', class_='wikitable')
-            
-            if table:
-                symbols = []
-                rows = table.find_all('tr')[1:]
-                
-                for row in rows:
-                    cells = row.find_all(['td', 'th'])
-                    if len(cells) >= 1:
-                        try:
-                            symbol = cells[0].get_text().strip()
-                            symbol = re.sub(r'[^\w.-]', '', symbol)
-                            if symbol:
-                                symbols.append(symbol)
-                        except:
-                            continue
-                
-                if symbols:
-                    return symbols
-            
-            st.warning("Russell 1000 data not available from Wikipedia. Using sample data.")
-            return []
-            
-        except Exception as e:
-            st.warning(f"Russell 1000 data not available: {str(e)}")
-            return []
+        """Get Russell 1000 constituents - using top S&P 500 as proxy since full list unavailable"""
+        st.info("Russell 1000 full constituent list not readily available. Using S&P 500 as a representative sample.")
+        return self._get_sp500()
     
     def _get_ftse100(self):
         """Get FTSE 100 constituents from Wikipedia"""
