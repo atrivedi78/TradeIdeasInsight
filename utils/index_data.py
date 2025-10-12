@@ -100,11 +100,43 @@ class IndexDataFetcher:
         except Exception as e:
             st.error(f"Error fetching Nasdaq 100 data: {str(e)}")
             return []
-    
+
     def _get_russell1000(self):
         """Get Russell 1000 constituents - using top S&P 500 as proxy since full list unavailable"""
-        st.info("Russell 1000 full constituent list not readily available. Using S&P 500 as a representative sample.")
-        return self._get_sp500()
+        try:
+            url = "https://en.wikipedia.org/wiki/Russell_1000_Index"
+            response = requests.get(url, headers=self.headers, timeout=15)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+            table = soup.find('table', {'id': 'constituents'})
+
+            if not table:
+                table = soup.find('table', class_='wikitable')
+
+            if not table:
+                st.error("Could not find Nasdaq 100 table")
+                return []
+
+            symbols = []
+            rows = table.find_all('tr')[1:]
+
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 2:
+                    try:
+                        symbol = cells[1].get_text().strip()
+                        symbol = re.sub(r'[^\w.-]', '', symbol)
+                        if symbol and symbol not in ['Ticker', 'Symbol']:
+                            symbols.append(symbol)
+                    except:
+                        continue
+
+            return symbols
+
+        except Exception as e:
+            st.error(f"Error fetching Nasdaq 100 data: {str(e)}")
+            return [] 
     
     def _get_ftse100(self):
         """Get FTSE 100 constituents from Wikipedia"""
