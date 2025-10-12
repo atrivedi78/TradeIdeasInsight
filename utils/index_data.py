@@ -102,7 +102,7 @@ class IndexDataFetcher:
             return []
 
     def _get_russell1000(self):
-        """Get Russell 1000 constituents - using top S&P 500 as proxy since full list unavailable"""
+        """Get Russell 1000 constituents"""
         try:
             url = "https://en.wikipedia.org/wiki/Russell_1000_Index"
             response = requests.get(url, headers=self.headers, timeout=15)
@@ -115,7 +115,7 @@ class IndexDataFetcher:
                 table = soup.find('table', class_='wikitable')
 
             if not table:
-                st.error("Could not find Nasdaq 100 table")
+                st.error("Could not find Russell 1000 table")
                 return []
 
             symbols = []
@@ -135,7 +135,7 @@ class IndexDataFetcher:
             return symbols
 
         except Exception as e:
-            st.error(f"Error fetching Nasdaq 100 data: {str(e)}")
+            st.error(f"Error fetching Russell 1000 data: {str(e)}")
             return [] 
     
     def _get_ftse100(self):
@@ -201,7 +201,7 @@ class IndexDataFetcher:
                 cells = row.find_all(['td', 'th'])
                 if len(cells) >= 2:
                     try:
-                        symbol = cells[1].get_text().strip()
+                        symbol = cells[0].get_text().strip()
                         symbol = re.sub(r'[^\w.-]', '', symbol)
                         if symbol:
                             symbols.append(symbol)
