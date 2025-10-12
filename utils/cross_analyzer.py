@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import streamlit as st
+import logging
 
 class CrossAnalyzer:
     """Analyzer for detecting golden and death crosses in stocks"""
@@ -10,6 +11,7 @@ class CrossAnalyzer:
     def __init__(self):
         self.short_ma = 50
         self.long_ma = 200
+        logging.basicConfig(level=logging.WARNING)
     
     def analyze_stocks(self, symbols, lookback_days=180, max_symbols=100):
         """
@@ -58,10 +60,11 @@ class CrossAnalyzer:
         """Check if a stock has had a golden or death cross in the past week"""
         try:
             ticker = yf.Ticker(symbol)
-            
+            logging.info(f"yfinance data retrieved for {symbol}")
             hist = ticker.history(start=start_date, end=end_date, auto_adjust=True)
             
             if hist.empty or len(hist) < self.long_ma:
+                logging.warning(f"no history for {symbol}")
                 return None
             
             hist['MA50'] = hist['Close'].rolling(window=self.short_ma).mean()
@@ -70,15 +73,18 @@ class CrossAnalyzer:
             hist = hist.dropna()
             
             if len(hist) < 10:
+                logging.warning(f"history too short for {symbol}")
                 return None
             
             hist['Signal'] = np.where(hist['MA50'] > hist['MA200'], 1, -1)
             hist['Cross'] = hist['Signal'].diff()
             
             one_week_ago = end_date - timedelta(days=7)
+            hist.index = hist.index.tz_localize(None)
             recent_data = hist[hist.index >= one_week_ago]
             
             if recent_data.empty:
+                logging.warning(f"recent data empty for {symbol}")
                 return None
             
             golden_cross = recent_data[recent_data['Cross'] == 2]
@@ -127,10 +133,11 @@ class CrossAnalyzer:
                     'PE_Ratio': round(pe_ratio, 2) if pe_ratio else None,
                     'Market_Cap_B': round(market_cap / 1e9, 2) if market_cap else None
                 }
-            
+
             return None
             
         except Exception as e:
+            logging.warning(f"Exception of type {type(e).__name__} occurred for {symbol}: {e}", exc_info=True)
             return None
     
     def _calculate_rsi(self, prices, period=14):
