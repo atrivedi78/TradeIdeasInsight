@@ -43,12 +43,15 @@ with col2:
     )
     
 with col3:
-    
+
+    # Add vertical space to align button with other widgets
+    st.markdown("<div style='margin-top: 26px;'></div>", unsafe_allow_html=True)
     analyze_button = st.button("🔍 Analyze", type="primary", use_container_width=True)
 
-st.subheader("Results")
-
 if analyze_button:
+
+    st.subheader("Results")
+
     with st.spinner(f"Fetching {selected_index} constituents..."):
         fetcher = IndexDataFetcher()
         symbols = fetcher.get_index_constituents(selected_index)
