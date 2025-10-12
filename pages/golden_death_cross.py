@@ -27,7 +27,7 @@ with col1:
     
     selected_index = st.selectbox(
         "Select Index",
-        options=['S&P 500', 'Nasdaq 100', 'Russell 1000', 'FTSE 100', 'Eurostoxx'],
+        options=['S&P 500', 'Nasdaq 100', 'Russell 1000', 'FTSE 100', 'Eurostoxx', 'Test Data'],
         help="Choose the market index to analyze"
     )
     

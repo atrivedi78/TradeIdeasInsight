@@ -27,10 +27,6 @@ class CrossAnalyzer:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=lookback_days + self.long_ma)
         
-        if len(symbols) > max_symbols:
-            st.info(f"Analyzing first {max_symbols} stocks from {len(symbols)} total (to avoid rate limits)")
-            symbols = symbols[:max_symbols]
-        
         total_symbols = len(symbols)
         progress_bar = st.progress(0)
         status_text = st.empty()

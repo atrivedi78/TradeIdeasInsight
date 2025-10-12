@@ -20,7 +20,8 @@ class IndexDataFetcher:
             'Nasdaq 100': _self._get_nasdaq100,
             'Russell 1000': _self._get_russell1000,
             'FTSE 100': _self._get_ftse100,
-            'Eurostoxx': _self._get_eurostoxx
+            'Eurostoxx': _self._get_eurostoxx,
+            'Test Data': _self._get_test_data
         }
         
         if index_name in fetchers:
@@ -180,3 +181,11 @@ class IndexDataFetcher:
         except Exception as e:
             st.error(f"Error fetching Eurostoxx data: {str(e)}")
             return []
+
+    def _get_test_data(self):
+    
+        symbols = []
+        symbol = 'CSTL'
+        symbols.append(symbol)
+    
+        return symbols
