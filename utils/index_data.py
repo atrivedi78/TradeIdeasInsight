@@ -88,7 +88,7 @@ class IndexDataFetcher:
                 cells = row.find_all(['td', 'th'])
                 if len(cells) >= 2:
                     try:
-                        symbol = cells[1].get_text().strip()
+                        symbol = cells[0].get_text().strip()
                         symbol = re.sub(r'[^\w.-]', '', symbol)
                         if symbol and symbol not in ['Ticker', 'Symbol']:
                             symbols.append(symbol)
