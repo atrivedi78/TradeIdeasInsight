@@ -100,6 +100,7 @@ if analyze_button:
                         "Market_Cap_B": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f", width="small")
                     },
                     hide_index=True,
+                    height = (len(results) + 1) * 35,
                     use_container_width=True
                 )
             
@@ -121,6 +122,7 @@ if analyze_button:
                             "Market_Cap_B": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f", width="small")
                         },
                         hide_index=True,
+                        height = (len(results) + 1) * 35,
                         use_container_width=True
                     )
                 else:
@@ -144,6 +146,7 @@ if analyze_button:
                             "Market_Cap_B": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f", width="small")
                         },
                         hide_index=True,
+                        height = (len(results) + 1) * 35,
                         use_container_width=True
                     )
                 else:

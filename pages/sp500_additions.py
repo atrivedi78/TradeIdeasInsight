@@ -145,7 +145,7 @@ else:
                     fig.add_vline(
                         x=0,
                         line_dash="dash",
-                        line_color="black",
+                        line_color="orange",
                         annotation_text="Announcement Date",
                         annotation_position="top"
                     )
@@ -170,7 +170,7 @@ else:
                     fig.add_hline(
                         y=1.0,
                         line_dash="dot",
-                        line_color="gray",
+                        line_color="orange",
                         opacity=0.5
                     )
                     
@@ -310,7 +310,10 @@ if not candidates_df.empty:
         if 'Score' in display_df.columns:
             display_df['Score'] = display_df['Score'].round(1)
         
-        st.dataframe(display_df, width='stretch', hide_index=True)
+        st.dataframe(display_df, 
+                     width='stretch', 
+                     height = (len(display_df)+1)*35,
+                     hide_index=True)
     else:
         st.warning("Please select at least one column to display.")
     
