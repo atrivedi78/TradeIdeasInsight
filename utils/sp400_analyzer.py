@@ -222,6 +222,7 @@ class Russell1000Analyzer:
                     'earnings_growth': info.get('earningsGrowth', 0) * 100 if info.get('earningsGrowth') else 0,
                     'shares_outstanding': info.get('sharesOutstanding', 0),
                     'float_shares': info.get('floatShares', 0),
+                    'country': info.get('country', ''),
                 }
                 
                 return metrics
@@ -250,7 +251,12 @@ class Russell1000Analyzer:
         score = 0
         score_breakdown = {}
         criteria_met = True
-        
+
+        # US Domicile Check (hard requirement)
+        country = metrics.get('country', '')
+        if country != 'United States':
+            criteria_met = False
+
         # Market Cap Score (30 points max)
         market_cap = metrics.get('market_cap', 0)
         if market_cap >= self.sp500_criteria['min_market_cap']:
